@@ -1,10 +1,10 @@
 module Processor (
     Clock
-,   clock
+,   resetClock
 ,   c_m
 ,   c_t
 ,   Registers
-,   registers
+,   resetRegisters
 ,   r_a
 ,   r_b
 ,   r_c
@@ -19,7 +19,11 @@ module Processor (
 ,   r_t
 ) where
 
-import Data.Binary
+import Control.Monad.State
+import Data.Binary (Word8, Word16)
+
+import MMU
+
 
 data Clock = Clock {
     c_m  :: Double
@@ -41,8 +45,41 @@ data Registers = Registers {
 ,   r_t  :: Word8   -- Clock incrementer
 } deriving (Show)
 
-clock :: Clock
-clock = Clock 0 0
+data Flags = Flags {
+  halts :: Int,
+  stops :: Int
+} deriving Show
 
-registers :: Registers
-registers = Registers 0 0 0 0 0 0 0 0 0 0 0 0
+data Z80 = Z80 {
+	z80_c   :: Clock
+,	z80_r   :: Registers
+,	z80_mmu :: MMU
+} deriving (Show)
+
+type Z80State a = State Z80 a
+
+resetClock :: Clock
+resetClock = Clock 0 0
+
+resetRegisters :: Registers
+resetRegisters = Registers 0 0 0 0 0 0 0 0 0 0 0 0
+
+resetZ80 :: Z80
+resetZ80 = Z80 resetClock resetRegisters resetMMU
+
+
+dispatcher :: Z80State ()
+dispatcher = do
+    dispatcher
+
+{- OPCODES START HERE -}
+nop :: Z80State ()
+nop = do
+	z80 <- get
+	put z80 {z80_r = (z80_r z80) {r_m = 1, r_t = 4} }
+{- OPCODES END HERE -}
+
+
+-- Mapping from opcode value to corresponding function
+opcodes :: [Z80State ()]
+opcodes = [nop | x <- [0..255]]
