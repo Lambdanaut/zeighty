@@ -1,30 +1,39 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Data (
     Clock
-,   c_m
-,   c_t
+,   clock_m
+,   clock_t
 ,   Registers
-,   r_a
-,   r_b
-,   r_c
-,   r_d
-,   r_e
-,   r_h
-,   r_l
-,   r_f
-,   r_pc
-,   r_sp
-,   r_m
-,   r_t
 ,   MMU
+,   inBios
+,   bios
+,   rom
+,   vram
+,   eram
+,   wram
+,   oam
+,   zram
 ,   Flags
-,   f_halt
-,   f_stop
+,   halt_flag
+,   stop_flag
+,   Z80
+,   clock
+,   flags
+,   mmu
+,   regs
+,   a
+,   b
+,   c
+,   d
+,   e
+,   h
+,   l
+,   f
+,   pc
+,   sp
+,   m
+,   t
 ,   Z80State
-,   z80_c
-,   z80_r
-,   z80_mmu
-,   z80_f
 ,   resetClock
 ,   resetRegisters
 ,   resetMMU
@@ -33,7 +42,7 @@ module Data (
 ,   resetBIOS
 ) where
 
-import Control.Lens ()
+import Control.Lens (makeLenses)
 import Control.Monad.State.Lazy (State)
 import Data.Binary (Word8, Word16)
 import qualified Data.ByteString as BS
@@ -41,49 +50,38 @@ import qualified Data.ByteString as BS
 import ROM (resetBIOS)
 
 data Clock = Clock {
-    c_m  :: Double
-,   c_t  :: Double
+    _clock_m  :: Double
+,   _clock_t  :: Double
 } deriving (Show)
+makeLenses ''Clock
 
 data Registers = Registers {
-    r_a  :: Word8
-,   r_b  :: Word8
-,   r_c  :: Word8
-,   r_d  :: Word8
-,   r_e  :: Word8
-,   r_h  :: Word8
-,   r_l  :: Word8
-,   r_f  :: Word8   -- Flag
-,   r_pc :: Word16  -- Program counter
-,   r_sp :: Word16  -- Stack pointer
-,   r_m  :: Word8   -- Clock incrementer
-,   r_t  :: Word8   -- Clock incrementer
+    _a  :: Word8
+,   _b  :: Word8
+,   _c  :: Word8
+,   _d  :: Word8
+,   _e  :: Word8
+,   _h  :: Word8
+,   _l  :: Word8
+,   _f  :: Word8   -- Flag
+,   _pc :: Word16  -- Program counter
+,   _sp :: Word16  -- Stack pointer
+,   _m  :: Word8   -- Clock incrementer
+,   _t  :: Word8   -- Clock incrementer
 } deriving (Show)
+makeLenses ''Registers
 
 data MMU = MMU {
-    inBios :: Bool
-,   mmu_bios   :: BS.ByteString
-,   mmu_rom    :: BS.ByteString
-,   mmu_vram   :: BS.ByteString
-,   mmu_eram   :: BS.ByteString
-,   mmu_wram   :: BS.ByteString
-,   mmu_oam    :: BS.ByteString
-,   mmu_zram   :: BS.ByteString
+    _inBios :: Bool
+,   _bios   :: BS.ByteString
+,   _rom    :: BS.ByteString
+,   _vram   :: BS.ByteString
+,   _eram   :: BS.ByteString
+,   _wram   :: BS.ByteString
+,   _oam    :: BS.ByteString
+,   _zram   :: BS.ByteString
 }
-
-data Flags = Flags {
-    f_halt :: Word8
-,   f_stop :: Word8
-} deriving Show
-
-data Z80 = Z80 {
-     z80_c   :: Clock
-,    z80_r   :: Registers
-,    z80_mmu :: MMU
-,    z80_f   :: Flags
-} deriving (Show)
-
-type Z80State a = State Z80 a
+makeLenses ''MMU
 
 instance Show MMU where
     show (MMU inBios bios rom vram eram wram oam zram) = "MMU: {\n\
@@ -97,6 +95,22 @@ instance Show MMU where
 \    zram: "   ++ (show $ BS.length zram) ++ " Bytes\n\
 \}"
 
+data Flags = Flags {
+    _halt_flag :: Word8
+,   _stop_flag :: Word8
+} deriving Show
+makeLenses ''Flags
+
+data Z80 = Z80 {
+     _clock :: Clock
+,    _regs  :: Registers
+,    _mmu   :: MMU
+,    _flags :: Flags
+} deriving (Show)
+makeLenses ''Z80
+
+type Z80State a = State Z80 a
+
 resetClock :: Clock
 resetClock = Clock 0 0
 
@@ -105,14 +119,14 @@ resetRegisters = Registers 0 0 0 0 0 0 0 0 0 0 0 0
 
 resetMMU :: MMU
 resetMMU = MMU {
-    inBios = True 
-,   mmu_bios   = resetBIOS
-,   mmu_rom    = resetRange 0 0x7FFF
-,   mmu_vram   = resetRange 8000 0x9FFF
-,   mmu_eram   = resetRange 0xA000 0xBFFF
-,   mmu_wram   = resetRange 0xC000 0xEFFF
-,   mmu_oam    = resetRange 0xFE00 0xFEA0
-,   mmu_zram   = resetRange 0xFF80 0xFFFF
+    _inBios = True 
+,   _bios   = resetBIOS
+,   _rom    = resetRange 0 0x7FFF
+,   _vram   = resetRange 8000 0x9FFF
+,   _eram   = resetRange 0xA000 0xBFFF
+,   _wram   = resetRange 0xC000 0xEFFF
+,   _oam    = resetRange 0xFE00 0xFEA0
+,   _zram   = resetRange 0xFF80 0xFFFF
 }
   where resetRange f l = BS.pack [0 | x <- [f..l]]
 

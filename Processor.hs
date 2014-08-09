@@ -2,27 +2,20 @@
 module Processor (
 ) where
 
-import Control.Lens ()
+import Control.Lens ((^.), set, makeLenses)
 import Control.Monad.State.Lazy (State, put, get, modify, runState)
 
 import Data
 import qualified MMU
 
-dispatcher :: Z80State ()
-dispatcher = do
-    state <- get
-    let inc_pc = 1 + (r_pc $ z80_r state)
-    put state {z80_r = (z80_r state) {r_pc = inc_pc}}
-    opcode <- MMU.rb inc_pc
-    opcodes !! (fromIntegral $ opcode :: Int)
-
-    --dispatcher
 
 {- OPCODE HELPERS START -}
 
 -- Register time passing
 tickTock :: Z80State ()
-tickTock = modify (\state -> state {z80_r = (z80_r state) {r_m = 1, r_t = 4}})
+tickTock = do
+    modify (\z80 -> set (regs.m) 1 z80 )
+    modify (\z80 -> set (regs.t) 4 z80 )
 
 {- OPCODE HELPERS END -}
 
@@ -38,7 +31,7 @@ nop = tickTock
 -- 60
 -- 70
 halt :: Z80State ()
-halt = tickTock >> modify (\state -> state {z80_f = (z80_f state) {f_halt = 1}})
+halt = tickTock >> modify (\state -> set (flags.halt_flag) 1 state)
 -- 80
 -- 90
 -- A0
@@ -54,3 +47,19 @@ halt = tickTock >> modify (\state -> state {z80_f = (z80_f state) {f_halt = 1}})
 -- Mapping from opcode value to corresponding function
 opcodes :: [Z80State ()]
 opcodes = [nop | x <- [0..255]]
+
+dispatcher :: Z80State ()
+dispatcher = do
+    z80 <- get
+    -- Increment program counter
+    let inc_pc = 1 + (z80^.regs.pc)
+    put $ set (regs.pc) inc_pc z80
+
+    opcode <- MMU.rb inc_pc
+    opcodes !! (fromIntegral $ opcode :: Int)
+
+    -- Update system clock
+    modify (\z80 -> set (clock.clock_m) (fromIntegral $ z80^.regs.m) z80)
+    modify (\z80 -> set (clock.clock_t) (fromIntegral $ z80^.regs.t) z80)
+
+    --dispatcher
