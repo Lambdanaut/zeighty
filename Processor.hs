@@ -1,83 +1,54 @@
+{-# LANGUAGE TemplateHaskell #-}
 module Processor (
-    Clock
-,   resetClock
-,   c_m
-,   c_t
-,   Registers
-,   resetRegisters
-,   r_a
-,   r_b
-,   r_c
-,   r_d
-,   r_e
-,   r_h
-,   r_l
-,   r_f
-,   r_pc
-,   r_sp
-,   r_m
-,   r_t
 ) where
 
-import Control.Monad.State
-import Data.Binary (Word8, Word16)
+import Control.Lens ()
+import Control.Monad.State.Lazy (State, put, get, modify, runState)
 
-import MMU
-
-
-data Clock = Clock {
-    c_m  :: Double
-,   c_t  :: Double
-} deriving (Show)
-
-data Registers = Registers {
-    r_a  :: Word8
-,   r_b  :: Word8
-,   r_c  :: Word8
-,   r_d  :: Word8
-,   r_e  :: Word8
-,   r_h  :: Word8
-,   r_l  :: Word8
-,   r_f  :: Word8   -- Flag
-,   r_pc :: Word16  -- Program counter
-,   r_sp :: Word16  -- Stack pointer
-,   r_m  :: Word8   -- Clock incrementer
-,   r_t  :: Word8   -- Clock incrementer
-} deriving (Show)
-
-data Flags = Flags {
-  halts :: Int,
-  stops :: Int
-} deriving Show
-
-data Z80 = Z80 {
-	z80_c   :: Clock
-,	z80_r   :: Registers
-,	z80_mmu :: MMU
-} deriving (Show)
-
-type Z80State a = State Z80 a
-
-resetClock :: Clock
-resetClock = Clock 0 0
-
-resetRegisters :: Registers
-resetRegisters = Registers 0 0 0 0 0 0 0 0 0 0 0 0
-
-resetZ80 :: Z80
-resetZ80 = Z80 resetClock resetRegisters resetMMU
-
+import Data
+import qualified MMU
 
 dispatcher :: Z80State ()
 dispatcher = do
-    dispatcher
+    state <- get
+    let inc_pc = 1 + (r_pc $ z80_r state)
+    put state {z80_r = (z80_r state) {r_pc = inc_pc}}
+    opcode <- MMU.rb inc_pc
+    opcodes !! (fromIntegral $ opcode :: Int)
 
-{- OPCODES START HERE -}
-nop :: Z80State ()
-nop = do
-	z80 <- get
-	put z80 {z80_r = (z80_r z80) {r_m = 1, r_t = 4} }
-{- OPCODES END HERE -}
+    --dispatcher
+
+{- OPCODE HELPERS START -}
+
+-- Register time passing
+tickTock :: Z80State ()
+tickTock = modify (\state -> state {z80_r = (z80_r state) {r_m = 1, r_t = 4}})
+
+{- OPCODE HELPERS END -}
+
+{- OPCODES START -}
+
+-- 00
+nop = tickTock
+-- 10
+-- 20
+-- 30
+-- 40
+-- 50
+-- 60
+-- 70
+halt :: Z80State ()
+halt = tickTock >> modify (\state -> state {z80_f = (z80_f state) {f_halt = 1}})
+-- 80
+-- 90
+-- A0
+-- B0
+-- C0
+-- D0
+-- E0
+-- F0
+
+{- OPCODES END -}
 
 
 -- Mapping from opcode value to corresponding function
