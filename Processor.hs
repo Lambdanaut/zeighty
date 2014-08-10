@@ -1,8 +1,7 @@
-{-# LANGUAGE TemplateHaskell #-}
 module Processor (
 ) where
 
-import Control.Lens ((^.), set, makeLenses)
+import Control.Lens ((^.), set, over)
 import Control.Monad.State.Lazy (State, put, get, modify, runState)
 
 import Data
@@ -14,8 +13,8 @@ import qualified MMU
 -- Register time passing
 tickTock :: Z80State ()
 tickTock = do
-    modify (\z80 -> set (regs.m) 1 z80 )
-    modify (\z80 -> set (regs.t) 4 z80 )
+    modify $ \z80 -> set (regs.m) 1 z80
+    modify $ \z80 -> set (regs.t) 4 z80
 
 {- OPCODE HELPERS END -}
 
@@ -31,7 +30,7 @@ nop = tickTock
 -- 60
 -- 70
 halt :: Z80State ()
-halt = tickTock >> modify (\state -> set (flags.halt_flag) 1 state)
+halt = tickTock >> (modify $ \state -> set (flags.halt_flag) 1 state)
 -- 80
 -- 90
 -- A0
@@ -59,7 +58,7 @@ dispatcher = do
     opcodes !! (fromIntegral $ opcode :: Int)
 
     -- Update system clock
-    modify (\z80 -> set (clock.clock_m) (fromIntegral $ z80^.regs.m) z80)
-    modify (\z80 -> set (clock.clock_t) (fromIntegral $ z80^.regs.t) z80)
+    modify $ \z80 -> over (clock.clock_m) ((+) $ fromIntegral $ z80^.regs.m) z80
+    modify $ \z80 -> over (clock.clock_t) ((+) $ fromIntegral $ z80^.regs.t) z80
 
-    --dispatcher
+    if inc_pc == 50000 then return () else dispatcher
