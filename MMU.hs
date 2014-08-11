@@ -16,21 +16,29 @@ import Control.Monad.State.Lazy (gets)
 import Data
 
 
-
 -- Reads a byte (8bit)
 rb :: Word16 -> Z80State Word8
-rb addr 
-    | roundAddr == 0x0000 = if addr < 0x0100
-                                then gets $ \z80 -> index (z80^.mmu.bios) $ fromIntegral addr
-                                else gets $ \z80 -> index (z80^.mmu.rom) $ fromIntegral addr
-    | any (==roundAddr) [0x1000,0x2000,0x3000]  = gets  $ \z80 -> index (z80^.mmu.rom)  $ fromIntegral addr                                      {- ROM BANK 0-}
-    | any (==roundAddr) [0x4000,0x5000..0x7000] = gets  $ \z80 -> index (z80^.mmu.rom)  $ fromIntegral $ (z80^.mmu.romOffs) + (addr .&. 0x3FFF)  {- ROM BANK 1-}
-    | any (==roundAddr) [0x8000,0x9000]         = gets  $ \z80 -> index (z80^.mmu.vram) $ fromIntegral $ addr .&. 0x1FFF                         {- VRAM -}
-    | any (==roundAddr) [0xA000,0xB000]         = gets  $ \z80 -> index (z80^.mmu.eram) $ fromIntegral $ (z80^.mmu.romOffs) + (addr .&. 0x1FFF)  {- External RAM -}
-    | any (==roundAddr) [0xC000,0xD000,0xE000]  = gets  $ \z80 -> index (z80^.mmu.wram) $ fromIntegral $ addr .&. 0x1FFF                         {- Work RAM and echo -}
-    | otherwise                                 = error $ "Read memory index out of range: " ++ show addr
-  where 
-    roundAddr = addr .&. 0xF000
+rb addr = 
+    case addr .&. 0x0F00 of
+    roundAddr
+     | roundAddr == 0x0000 ->
+        if addr < 0x0100
+        then gets $ \z80 -> index (z80^.mmu.bios) $ fromIntegral addr
+        else gets $ \z80 -> index (z80^.mmu.rom) $ fromIntegral addr
+     | any (==roundAddr) [0x1000,0x2000,0x3000]  -> gets $ \z80 -> index (z80^.mmu.rom)  $ fromIntegral addr                                      {- ROM BANK 0-}
+     | any (==roundAddr) [0x4000,0x5000..0x7000] -> gets $ \z80 -> index (z80^.mmu.rom)  $ fromIntegral $ (z80^.mmu.romOffs) + (addr .&. 0x3FFF)  {- ROM BANK 1-}
+     | any (==roundAddr) [0x8000,0x9000]         -> gets $ \z80 -> index (z80^.mmu.vram) $ fromIntegral $ addr .&. 0x1FFF                         {- VRAM -}
+     | any (==roundAddr) [0xA000,0xB000]         -> gets $ \z80 -> index (z80^.mmu.eram) $ fromIntegral $ (z80^.mmu.ramOffs) + (addr .&. 0x1FFF)  {- External RAM -}
+     | any (==roundAddr) [0xC000,0xD000,0xE000]  -> gets $ \z80 -> index (z80^.mmu.wram) $ fromIntegral $ addr .&. 0x1FFF                         {- Work RAM and echo -}
+     | otherwise                                 -> error $ "Read byte index out of range: " ++ show addr
+     | roundAddr == 0xF000                       ->
+        case addr .&. 0x0F00 of                                                             {- WRAM Shadow, I/O, ZRAM -}
+        roundAddr
+         | any (==roundAddr) [0x000,0x100..0xD00] -> gets $ \z80 -> index (z80^.mmu.wram) $ fromIntegral $ addr .&. 0x1FFF                        {- WRAM Shadow -}
+         | roundAddr == 0xE00 -> if addr .&. 0xFF < 0xA0 then gets $ \z80 -> index (z80^.mmu.oam) $ fromIntegral $ addr .&. 0xFF else return 0    {- OAM Sprite data -}
+
+        -- | roundAddr == 0xF00 && (addr >= 0xFF80) = ((zram mem) !! (addr .&. 0x7F),(inBios mem))                             {- ZRAM -}
+        -- | roundAddr == 0xF00 && (addr < 0xFF80)  = (31337,False)                                                            {- I/O control handling -}
 
 
 --rb :: (MMUState) -> Int -> Int -> (Int, Bool)

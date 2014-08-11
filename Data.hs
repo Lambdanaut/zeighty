@@ -123,7 +123,7 @@ resetRegisters = Registers 0 0 0 0 0 0 0 0 0 0 0 0
 resetMMU :: MMU
 resetMMU = MMU {
     _bios    = resetBIOS
-,   _rom     = resetRange 0x0100 0x7FFF
+,   _rom     = resetRange 0x0000 0x7FFF
 ,   _vram    = resetRange 0x8000 0x9FFF
 ,   _eram    = resetRange 0xA000 0xBFFF
 ,   _wram    = resetRange 0xC000 0xEFFF
