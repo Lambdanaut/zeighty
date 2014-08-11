@@ -14,6 +14,8 @@ module Data (
 ,   zram
 ,   romOffs
 ,   ramOffs
+,   ie
+,   iflag
 ,   Flags
 ,   halt_flag
 ,   stop_flag
@@ -82,20 +84,24 @@ data MMU = MMU {
 ,   _zram    :: BS.ByteString
 ,   _romOffs :: Word16
 ,   _ramOffs :: Word16
+,   _ie      :: Word8
+,   _iflag   :: Word8
 }
 makeLenses ''MMU
 
 instance Show MMU where
-    show (MMU bios rom vram eram wram oam zram romOffs ramOffs) = "MMU: {\n\
-\    bios: "    ++ (show $ BS.length bios) ++ " Bytes\n\
-\    rom: "     ++ (show $ BS.length rom) ++ " Bytes\n\
-\    vram: "    ++ (show $ BS.length vram) ++ " Bytes\n\
-\    eram: "    ++ (show $ BS.length eram) ++ " Bytes\n\
-\    wram: "    ++ (show $ BS.length wram) ++ " Bytes\n\
-\    oam: "     ++ (show $ BS.length oam) ++ " Bytes\n\
-\    zram: "    ++ (show $ BS.length zram) ++ " Bytes\n\
+    show (MMU bios rom vram eram wram oam zram romOffs ramOffs ie iflag) = "MMU: {\n\
+\    bios: "       ++ (show $ BS.length bios) ++ " Bytes\n\
+\    rom: "        ++ (show $ BS.length rom) ++ " Bytes\n\
+\    vram: "       ++ (show $ BS.length vram) ++ " Bytes\n\
+\    eram: "       ++ (show $ BS.length eram) ++ " Bytes\n\
+\    wram: "       ++ (show $ BS.length wram) ++ " Bytes\n\
+\    oam: "        ++ (show $ BS.length oam) ++ " Bytes\n\
+\    zram: "       ++ (show $ BS.length zram) ++ " Bytes\n\
 \    ROM Offset: " ++ (show $ romOffs) ++ "\n\
 \    RAM Offset: " ++ (show $ ramOffs) ++ "\n\
+\    IE: "         ++ (show $ ie) ++ "\n\
+\    IFlag: "      ++ (show $ iflag) ++ "\n\
 \}"
 
 data Flags = Flags {
@@ -131,6 +137,8 @@ resetMMU = MMU {
 ,   _zram    = resetRange 0xFF80 0xFFFF
 ,   _romOffs = 0x4000
 ,   _ramOffs = 0x0000
+,   _ie      = 0x00
+,   _iflag   = 0x0000
 }
   where resetRange f l = BS.pack [0 | x <- [f..l]]
 

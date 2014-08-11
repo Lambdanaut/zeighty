@@ -32,11 +32,21 @@ rb addr =
      | any (==roundAddr) [0xC000,0xD000,0xE000]  -> gets $ \z80 -> index (z80^.mmu.wram) $ fromIntegral $ addr .&. 0x1FFF                         {- Work RAM and echo -}
      | otherwise                                 -> error $ "Read byte index out of range: " ++ show addr
      | roundAddr == 0xF000                       ->
-        case addr .&. 0x0F00 of                                                             {- WRAM Shadow, I/O, ZRAM -}
+        case addr .&. 0x0F00 of                                                                                                                   {- WRAM Shadow, I/O, ZRAM -}
         roundAddr
          | any (==roundAddr) [0x000,0x100..0xD00] -> gets $ \z80 -> index (z80^.mmu.wram) $ fromIntegral $ addr .&. 0x1FFF                        {- WRAM Shadow -}
-         | roundAddr == 0xE00 -> if addr .&. 0xFF < 0xA0 then gets $ \z80 -> index (z80^.mmu.oam) $ fromIntegral $ addr .&. 0xFF else return 0    {- OAM Sprite data -}
-
+         | roundAddr == 0xE00                     -> if addr .&. 0xFF < 0xA0 then gets $ \z80 -> index (z80^.mmu.oam) $ fromIntegral $ addr .&. 0xFF else return 0  {- OAM Sprite data -}
+         | roundAddr == 0xF00                     ->
+            case addr .&. 0xF0 of 
+            roundAddr
+             | addr == 0xFFFF   -> gets $ \z80 -> z80^.mmu.ie  {- TODO: Need to figure out what this does -}
+             | addr > 0xFF7F    -> gets $ \z80 -> index (z80^.mmu.zram) $ fromIntegral $ addr .&. 0x7F
+             | roundAddr == 0x00 ->
+                case addr .&. 0xF of
+                roundAddr
+                 | roundAddr == 0              -> error $ "Read byte: " ++ show addr ++ " is undefined. Need to fix. "  {- TODO -}
+                 | any (==roundAddr) [4,5,6,7] -> error $ "Read byte: " ++ show addr ++ " is undefined. Need to fix. "  {- TODO -}
+                 | roundAddr == 15             -> gets $ \z80 -> z80^.mmu.iflag
         -- | roundAddr == 0xF00 && (addr >= 0xFF80) = ((zram mem) !! (addr .&. 0x7F),(inBios mem))                             {- ZRAM -}
         -- | roundAddr == 0xF00 && (addr < 0xFF80)  = (31337,False)                                                            {- I/O control handling -}
 
