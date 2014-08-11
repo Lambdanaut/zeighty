@@ -19,7 +19,7 @@ import Data
 -- Reads a byte (8bit)
 rb :: Word16 -> Z80State Word8
 rb addr = 
-    case addr .&. 0x0F00 of
+    case addr .&. 0xF000 of
     roundAddr
      | roundAddr == 0x0000 ->
         if addr < 0x0100
