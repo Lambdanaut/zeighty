@@ -39,14 +39,17 @@ rb addr =
          | roundAddr == 0xF00                     ->
             case addr .&. 0xF0 of 
             roundAddr
-             | addr == 0xFFFF   -> gets $ \z80 -> z80^.mmu.ie  {- TODO: Need to figure out what this does -}
-             | addr > 0xFF7F    -> gets $ \z80 -> index (z80^.mmu.zram) $ fromIntegral $ addr .&. 0x7F
+             | addr == 0xFFFF                      -> gets $ \z80 -> z80^.mmu.ie  {- TODO: Need to figure out what this does -}
+             | addr > 0xFF7F                       -> gets $ \z80 -> index (z80^.mmu.zram) $ fromIntegral $ addr .&. 0x7F
              | roundAddr == 0x00 ->
                 case addr .&. 0xF of
                 roundAddr
                  | roundAddr == 0              -> error $ "Read byte: " ++ show addr ++ " is undefined. Need to fix. "  {- TODO -}
                  | any (==roundAddr) [4,5,6,7] -> error $ "Read byte: " ++ show addr ++ " is undefined. Need to fix. "  {- TODO -}
                  | roundAddr == 15             -> gets $ \z80 -> z80^.mmu.iflag
+                 | otherwise                   -> return 0
+             | any (==roundAddr) [0x10,0x20,0x30]  -> return 0
+             | any (==roundAddr) [0x40,0x50..0x70] -> return 0 {- TODO READ FROM GPU -}
         -- | roundAddr == 0xF00 && (addr >= 0xFF80) = ((zram mem) !! (addr .&. 0x7F),(inBios mem))                             {- ZRAM -}
         -- | roundAddr == 0xF00 && (addr < 0xFF80)  = (31337,False)                                                            {- I/O control handling -}
 
