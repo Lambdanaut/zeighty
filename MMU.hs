@@ -17,7 +17,7 @@ import Data
 
 
 -- Reads a byte (8bit)
-rb :: Word16 -> Z80State Word8
+rb :: Monad m => Word16 -> Z80State m Word8
 rb addr = 
     case addr .&. 0xF000 of
     roundAddr
@@ -78,7 +78,7 @@ rw :: ()
 rw = ()
 
 -- Writes a byte (8bit)
-wb :: Word16 -> Word8 -> Z80State Word8
+wb :: Monad m => Word16 -> Word8 -> Z80State m Word8
 wb addr val = return 0
 
 -- Writes a word (16bit)

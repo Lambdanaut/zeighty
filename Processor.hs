@@ -2,7 +2,7 @@ module Processor (
 ) where
 
 import Control.Lens ((^.), set, over)
-import Control.Monad.State.Lazy (State, put, get, modify, runState)
+import Control.Monad.State.Lazy (put, get, modify, runStateT)
 
 import Data
 import qualified MMU
@@ -11,7 +11,7 @@ import qualified MMU
 {- OPCODE HELPERS START -}
 
 -- Register time passing
-tickTock :: Z80State ()
+tickTock :: Monad m => Z80State m ()
 tickTock = do
     modify $ \z80 -> set (regs.m) 1 z80
     modify $ \z80 -> set (regs.t) 4 z80
@@ -21,6 +21,7 @@ tickTock = do
 {- OPCODES START -}
 
 -- 00
+nop :: Monad m => Z80State m ()
 nop = tickTock
 -- 10
 -- 20
@@ -29,7 +30,7 @@ nop = tickTock
 -- 50
 -- 60
 -- 70
-halt :: Z80State ()
+halt :: Monad m => Z80State m ()
 halt = tickTock >> (modify $ \state -> set (flags.halt_flag) 1 state)
 -- 80
 -- 90
@@ -44,10 +45,10 @@ halt = tickTock >> (modify $ \state -> set (flags.halt_flag) 1 state)
 
 
 -- Mapping from opcode value to corresponding function
-opcodes :: [Z80State ()]
+opcodes :: Monad m => [Z80State m ()]
 opcodes = [nop | x <- [0..255]]
 
-dispatcher :: Z80State ()
+dispatcher :: Z80State IO ()
 dispatcher = do
     z80 <- get
     -- Increment program counter

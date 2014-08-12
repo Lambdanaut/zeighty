@@ -46,7 +46,7 @@ module Data (
 ) where
 
 import Control.Lens (makeLenses)
-import Control.Monad.State.Lazy (State)
+import Control.Monad.State.Lazy (State, StateT)
 import Data.Binary (Word8, Word16)
 import qualified Data.ByteString as BS
 
@@ -118,7 +118,7 @@ data Z80 = Z80 {
 } deriving (Show)
 makeLenses ''Z80
 
-type Z80State a = State Z80 a
+type Z80State m a = StateT Z80 m a
 
 resetClock :: Clock
 resetClock = Clock 0 0
