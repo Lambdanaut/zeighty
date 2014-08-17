@@ -2,7 +2,7 @@ module Processor (
 ) where
 
 import Control.Lens ((^.), set, over)
-import Control.Monad.State.Lazy (put, get, modify, runStateT)
+import Control.Monad.State.Lazy (put, get, modify, runStateT, lift)
 
 import Data
 import qualified MMU
@@ -48,18 +48,22 @@ halt = tickTock >> (modify $ \state -> set (flags.halt_flag) 1 state)
 opcodes :: Monad m => [Z80State m ()]
 opcodes = [nop | x <- [0..255]]
 
+updateClock :: Z80State IO ()
+updateClock = do
+    modify $ \z80 -> over (clock.clock_m) ((+) $ fromIntegral $ z80^.regs.m) z80
+    modify $ \z80 -> over (clock.clock_t) ((+) $ fromIntegral $ z80^.regs.t) z80
+
 dispatcher :: Z80State IO ()
 dispatcher = do
     z80 <- get
     -- Increment program counter
-    let inc_pc = 1 + (z80^.regs.pc)
-    put $ set (regs.pc) inc_pc z80
+    let incPC = 1 + (z80^.regs.pc)
+    put $ set (regs.pc) incPC z80
 
-    opcode <- MMU.rb inc_pc
-    opcodes !! (fromIntegral $ opcode :: Int)
-
-    -- Update system clock
-    modify $ \z80 -> over (clock.clock_m) ((+) $ fromIntegral $ z80^.regs.m) z80
-    modify $ \z80 -> over (clock.clock_t) ((+) $ fromIntegral $ z80^.regs.t) z80
-
-    if inc_pc == 50000 then return () else dispatcher
+    opcode <- MMU.readByte incPC
+    case opcode of
+        Left err -> error err
+        Right opcode -> do
+            opcodes !! (fromIntegral $ opcode :: Int)
+            updateClock
+            if incPC == 65535 then return () else dispatcher
