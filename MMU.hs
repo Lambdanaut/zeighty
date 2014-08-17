@@ -5,16 +5,16 @@ module MMU (
 ,   writeWord
 ) where
 
-import Prelude hiding ((!!))
-
 import Data.Binary (Word8, Word16)
 import Data.Bits ((.&.))
-import Data.ByteString (index)
+import qualified Data.ByteString as BS
 import Control.Lens ((^.), set)
-import Control.Monad.State.Lazy (gets)
+import Control.Monad.State.Lazy (gets, lift, modify)
 
 import Data
 
+loadROM :: FilePath -> Z80State IO ()
+loadROM filepath = (lift $ BS.readFile filepath) >>= (\contents -> modify $ \z80 -> set (mmu.rom) contents z80)
 
 -- Reads a byte (8bit)
 readByte :: Monad m => Word16 -> Z80State m (Either String Word8)
@@ -23,26 +23,26 @@ readByte addr =
     roundAddr
      | roundAddr == 0x0000 ->
         if addr < 0x0100
-        then gets $ \z80 -> Right $ index (z80^.mmu.bios) $ fromIntegral addr
-        else gets $ \z80 -> Right $ index (z80^.mmu.rom) $ fromIntegral addr
-     | any (==roundAddr) [0x1000,0x2000,0x3000]  -> gets $ \z80 -> Right $ index (z80^.mmu.rom)  $ fromIntegral addr                                      {- ROM BANK 0-}
-     | any (==roundAddr) [0x4000,0x5000..0x7000] -> gets $ \z80 -> Right $ index (z80^.mmu.rom)  $ fromIntegral $ (z80^.mmu.romOffs) + (addr .&. 0x3FFF)  {- ROM BANK 1-}
-     | any (==roundAddr) [0x8000,0x9000]         -> gets $ \z80 -> Right $ index (z80^.mmu.vram) $ fromIntegral $ addr .&. 0x1FFF                         {- VRAM -}
-     | any (==roundAddr) [0xA000,0xB000]         -> gets $ \z80 -> Right $ index (z80^.mmu.eram) $ fromIntegral $ (z80^.mmu.ramOffs) + (addr .&. 0x1FFF)  {- External RAM -}
-     | any (==roundAddr) [0xC000,0xD000,0xE000]  -> gets $ \z80 -> Right $ index (z80^.mmu.wram) $ fromIntegral $ addr .&. 0x1FFF                         {- Work RAM and echo -}
+        then gets $ \z80 -> Right $ BS.index (z80^.mmu.bios) $ fromIntegral addr
+        else gets $ \z80 -> Right $ BS.index (z80^.mmu.rom) $ fromIntegral addr
+     | any (==roundAddr) [0x1000,0x2000,0x3000]  -> gets $ \z80 -> Right $ BS.index (z80^.mmu.rom)  $ fromIntegral addr                                      {- ROM BANK 0-}
+     | any (==roundAddr) [0x4000,0x5000..0x7000] -> gets $ \z80 -> Right $ BS.index (z80^.mmu.rom)  $ fromIntegral $ (z80^.mmu.romOffs) + (addr .&. 0x3FFF)  {- ROM BANK 1-}
+     | any (==roundAddr) [0x8000,0x9000]         -> gets $ \z80 -> Right $ BS.index (z80^.mmu.vram) $ fromIntegral $ addr .&. 0x1FFF                         {- VRAM -}
+     | any (==roundAddr) [0xA000,0xB000]         -> gets $ \z80 -> Right $ BS.index (z80^.mmu.eram) $ fromIntegral $ (z80^.mmu.ramOffs) + (addr .&. 0x1FFF)  {- External RAM -}
+     | any (==roundAddr) [0xC000,0xD000,0xE000]  -> gets $ \z80 -> Right $ BS.index (z80^.mmu.wram) $ fromIntegral $ addr .&. 0x1FFF                         {- Work RAM and echo -}
      | roundAddr == 0xF000                       ->
         case addr .&. 0x0F00 of                                                                                                                   {- WRAM Shadow, I/O, ZRAM -}
         roundAddr
-         | any (==roundAddr) [0x000,0x100..0xD00] -> gets $ \z80 -> Right $ index (z80^.mmu.wram) $ fromIntegral $ addr .&. 0x1FFF                        {- WRAM Shadow -}
+         | any (==roundAddr) [0x000,0x100..0xD00] -> gets $ \z80 -> Right $ BS.index (z80^.mmu.wram) $ fromIntegral $ addr .&. 0x1FFF                        {- WRAM Shadow -}
          | roundAddr == 0xE00                     ->
             if addr .&. 0xFF < 0xA0
-            then gets $ \z80 -> Right $ index (z80^.mmu.oam) $ fromIntegral $ addr .&. 0xFF
+            then gets $ \z80 -> Right $ BS.index (z80^.mmu.oam) $ fromIntegral $ addr .&. 0xFF
             else return $ Right 0  {- OAM Sprite data -}
          | roundAddr == 0xF00                     ->
             case addr .&. 0xF0 of 
             roundAddr
              | addr == 0xFFFF                      -> gets $ \z80 -> Right $ z80^.mmu.ie  {- TODO: Need to figure out what this does -}
-             | addr > 0xFF7F                       -> gets $ \z80 -> Right $ index (z80^.mmu.zram) $ fromIntegral $ addr .&. 0x7F
+             | addr > 0xFF7F                       -> gets $ \z80 -> Right $ BS.index (z80^.mmu.zram) $ fromIntegral $ addr .&. 0x7F
              | roundAddr == 0x00 ->
                 case addr .&. 0xF of
                 roundAddr
